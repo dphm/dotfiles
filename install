@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+
+# frozen-string-literal: true
+
+require 'fileutils'
+
+def spin?
+  ENV['SPIN'] == '1'
+end
+
+# Handle ^c
+trap('SIGINT') { exit }
+
+DOTS_DIR = File.expand_path(File.join(__dir__, 'dots'))
+
+force = spin? || ENV['DOTFILES_FORCE'] == '1'
+
+FileUtils.cd(DOTS_DIR) do
+  Dir.entries(Dir.pwd).each do |file|
+    # Skip directories
+    next if File.directory?(file)
+
+    # Skip spin config files when not in spin
+    next if file =~ /\.spin$/ && !spin?
+
+    # /path/to/dots/foo -> /path/to/home/foo
+    source = File.expand_path File.join(DOTS_DIR, file)
+    dest   = File.expand_path File.join(Dir.home, file)
+
+    # Skip existing dotfiles unless forced
+    next if File.exist?(dest) && !force
+
+    FileUtils.ln_s(source, dest, force: force)
+
+    message = +"Linking: #{source} -> #{dest}"
+    message << ' (forced)' if force
+    puts message
+  end
+end
+
+if spin?
+  `git config --global user.email d.pham@shopify.com`
+end
